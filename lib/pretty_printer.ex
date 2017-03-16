@@ -28,7 +28,7 @@ defmodule PrettyPrinter do
 
   # Fucntions
 
-  # def nil, do: :NIL
+  def nill, do: :NIL
 
   def x <~> y do
     %CAT{left: x, right: y}
@@ -73,7 +73,6 @@ defmodule PrettyPrinter do
   end
 
   def best(w,k,x), do: be(w,k,[{0,x}])
-    # be :: Int -> Int -> [(Int,DOC)] -> Doc
 
   def be(w,k,[]), do: :Nil
 
@@ -110,7 +109,7 @@ defmodule PrettyPrinter do
 
   def showTree(%Tree{name: s, children: ts}), do: text(s) <~> showBracket(ts)
 
-  def showBracket([]), do: :NIL
+  def showBracket([]), do: nill
   def showBracket(ts), do: bracket("[",showTrees(ts),"]")
 
   def showTrees([t | []]), do: showTree t
