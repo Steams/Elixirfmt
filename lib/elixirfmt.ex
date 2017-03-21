@@ -1,37 +1,38 @@
 defmodule Elixirfmt do
-  import PrettyPrinter
+  import PrettierPrinter
 
   @moduledoc """
   Documentation for Elixirfmt.
   """
 
   @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> Elixirfmt.hello
-      :world
 
   """
-  def getFileText do
-    {:ok, content} = File.read("/home/steams/Development/elixirfmt/lib/elixirfmt.ex")
-    content
-  end
 
-  # defmacro is_operator(op) do
-  #   quote do: unquote(op) == :=
-  # end
+  defmacro is_block(op) do
+    quote do
+      unquote(op) == :__block__
+    end
+  end
 
   defmacro is_operator(op) do
     quote do
-      unquote(op) == := or unquote(op) == :+
+      unquote(op) == := or
+      unquote(op) == :+ or
+      unquote(op) == :++ or
+      unquote(op) == :<>
     end
   end
 
   defmacro is_fbody(op) do
     quote do
       unquote(op) == :->
+    end
+  end
+
+  defmacro is_func_def(op) do
+    quote do
+      unquote(op) == :def
     end
   end
 
@@ -42,49 +43,78 @@ defmodule Elixirfmt do
   end
 
   defmodule AstNode do
-    defstruct type: "", value: "", meta: [], children: []
+    defstruct type: "", value: {}
   end
-
-  defmodule AstNode do
-    defstruct type: "", value: "", meta: [], children: []
-  end
-  # restructure this to have a type and a container, or just type value where value is like BinaryOperator
 
   defmodule BinaryOp do
     defstruct name: "", left: {}, right: {}
-  end
-
-  defmodule FuncBody do
-    defstruct body: {}
   end
 
   defmodule Atom do
     defstruct name: ""
   end
 
-  defmodule AstFBody do
+  defmodule Func do
     defstruct args: [], body: {}
   end
 
-  def getFunctionBody(node) do
-    xs = hd node
-    body = hd(tl node)
-    arguments = Enum.map(xs, fn x -> parseAst(x) end)
-    %AstFBody{args: arguments, body: parseAst(body)}
+  defmodule FuncDef do
+    defstruct name: "", args: [], body: {}
   end
 
-  def getChildNodes(nodes,parent_type \\ :Any) do
-    case parent_type do
-      :FunctionBody -> getFunctionBody(nodes)
-      :AnonymousFunction -> getChildNodes(nodes)
-      :Atom -> []
-      _ -> Enum.map(nodes,fn x -> parseAst(x) end)
+  defmodule Block do
+    defstruct children: []
+  end
+
+  # NOTE this is for block do funcs, need a different one for inline ones  ", do:"
+  def buildFunctionDefinition({id,meta,[{name,funcmeta,args},[do: body]]}) do
+    IO.puts "= Building Function Definition ="
+    IO.puts "= Parsing Function Arguments ="
+    arguments = Enum.map(args, fn x -> parse_ast(x) end)
+    IO.puts "= Parsing Function Body ="
+    %FuncDef{name: to_string(name), args: arguments, body: parse_ast(body)}
+  end
+
+  def buildBinaryOp({name,meta,[left,right]}) do
+    IO.puts "= Building Binary Operator ="
+    IO.puts "= Parsing Left Argument ="
+    x = parse_ast(left)
+    IO.puts "= Parsing Right Argument ="
+    y = parse_ast(right)
+
+    %BinaryOp{name: name, left: x, right: y}
+  end
+
+  # children is = [{:->,[],[[args],{body}]}]
+  def buildAnonFunction({id,meta,children}) do
+    [{:->,meta,[args,body]}] = children
+    arguments = Enum.map(args, fn x -> parse_ast(x) end)
+    %Func{args: arguments, body: parse_ast(body)}
+  end
+
+  def buildAtom({name,meta,children}) do
+    %Atom{name: to_string(name)}
+  end
+
+  def buildBlock({name,meta,children}) do
+     kids = Enum.map(children, fn x -> parse_ast(x) end)
+    %Block{children: kids}
+  end
+
+  def getNodeValue(ast,type) do
+    case type do
+      :FunctionDefinition -> buildFunctionDefinition(ast)
+      :Block -> buildBlock(ast)
+      :AnonymousFunction -> buildAnonFunction(ast)
+      :Operator -> buildBinaryOp(ast)
+      :Atom -> buildAtom(ast)
     end
   end
 
-  def getNodeType({value,meta,children}) do
+  def get_node_type({value,meta,children}) do
     case value do
-      x when is_fbody(x) -> :FunctionBody
+      x when is_block(x) -> :Block
+      x when is_func_def(x) -> :FunctionDefinition
       x when is_anonfunc(x) -> :AnonymousFunction
       x when is_operator(x) -> :Operator
       x when is_atom(x) -> :Atom
@@ -92,72 +122,94 @@ defmodule Elixirfmt do
     end
   end
 
-  def parseAst(ast) do
+  # Convert Ast Tuples to a Typed representation that can be pattern matched on (using structs)
+  def parse_ast(ast) do
     {value,meta,children} = ast
-    node_type = getNodeType(ast)
+    node_type = get_node_type(ast)
     IO.inspect ast
     IO.inspect node_type
-    # Enum.map(children, fn x -> IO.inspect x end)
-    # IO.inspect children
-    IO.puts "_________________________________-"
+    IO.puts "_________________________________"
 
-    %AstNode{type: node_type, value: value, meta: meta, children: getChildNodes(children,node_type)}
-    # # walk the tree recursively and create AstNodes
+    %AstNode{type: node_type, value: getNodeValue(ast,node_type)}
   end
 
-  def printAst(ast) do
+
+  def show_args(args) do
+    arguments = Enum.map(args, fn(x) -> show_ast(x) <~> text(",") end)
+    spread_or_stack(arguments)
+  end
+
+  def show_ast([]), do: nill()
+  def show_ast([head | []]), do: line() <~> show_ast(head)
+  def show_ast([head | tail]), do: line() <~> show_ast(head) <~> show_ast(tail)
+
+  # Convert Typed Ast Structs to "Prettier Printer" DOC types
+  def show_ast(ast) do
+
     %AstNode{type: type,value: value} = ast
+
     case value do
-      %BinaryOp{name: op, left: x, right: y} -> printAst(x) <~> text(" " <> op <> " ") <~>  printAst(y)
-      %AnonFunc{args: x, body: f} -> text "fn" <~> brackets("(",args,")") <~> text "->" <~> line
-      %FuncBody{body: x} -> nest(2,printAst(x))
-      %Atom{name: x} -> text s
+
+      %FuncDef{name: name, args: args, body: body} ->
+        head = text("def " <> name) <~> bracket("(",show_args(args),")") <~> text(" do")
+        # body = cat_best(show_ast(body),text"end")
+        body = bracket("",show_ast(body),"end")
+        # head <~> line <~> body
+        cat_best(head,body)
+
+      %BinaryOp{name: op, left: x, right: y} ->
+        left = show_ast(x) <~> text(" " <> to_string(op))
+        right = show_ast(y)
+        cat_best(left,right)
+
+      %Block{children: xs} ->
+        kids = Enum.map(xs, fn(x) -> show_ast(x) end)
+        folddoc(&cat_line/2,kids)
+
+      %Func{args: args, body: f} ->
+        head = text("fn") <~> bracket("(",show_args(args),") ->")
+        body = bracket("",show_ast(f),"end")
+        cat_best(head,body)
+
+      %Atom{name: x} ->
+        text(to_string(x))
+
       _ -> text "unknown"
     end
   end
 
-  def test do
-    str = "{:=, [], [
-      {:sum2, [], Elixir},
-      {:fn, [], [
-        {:->, [], [
-          [{:one, [], Elixir}, {:two, [], Elixir}],
-          {:+, [context: Elixir, import: Kernel], [
-            {:one, [], Elixir},
-            {:two, [], Elixir}
-          ]}
-        ]}
-      ]}
-    ]} "
+  # TODO Handle anonymous function calls with dot in parser/printer
 
-    ast=  {:=, [], [{:sum2, [], Elixir}, {:fn, [], [{:->, [], [[{:one, [], Elixir}, {:two, [], Elixir}], {:+, [context: Elixir, import: Kernel], [{:one, [], Elixir}, {:two, [], Elixir}]}]}]}]}
+  def test(w) do
 
-    # parseAst(Code.string_to_quoted!(str))
-    parsed = parseAst(ast)
-    # layout(printAst(parsed))
+    # str = "sum5 = fn(one,two,three,four,five) -> one + two + three + four + five end"
+    # str = "def sum5(one,two) do one + two end "
+
+    # str = "def sum5(one,two) do one + two end "
+    str = "def nested(one,two,three,four) do
+      sum4 = fn(x,y,z,a) -> x + y + z + a end
+
+      somethingElse = fn(name,surname) -> name ++ surname end
+      somethingElse = fn(name,surname) -> name ++ surname end
+    end"
+
+    ast = Code.string_to_quoted!(str)
+
+    parsed = parse_ast(ast)
+    doc = show_ast(parsed)
+    IO.puts("______________AST____________")
+    IO.inspect parsed
+    IO.puts("______________DOC____________")
+    IO.inspect doc
+    IO.puts("|" <> String.duplicate("-",w-2) <> "|")
+    IO.puts(pretty(w,doc))
   end
 
-  def hello do
-    %AstNode{type: "Number", value: 57, meta: [], children: []}
+  def format(w,str) do
+    ast = Code.string_to_quoted!(str)
+    parsed = parse_ast(ast)
+    IO.puts("|" <> String.duplicate("-",w-2) <> "|")
+    IO.puts(pretty(w,show_ast(parsed)))
   end
+
 end
-
-# {:=, [],
-#  [{:sum2, [], Elixir},
-#   {:fn, [],
-#     [{:->, [],
-#      [[{:one, [], Elixir}, {:two, [], Elixir}],
-#       {:+, [context: Elixir, import: Kernel],
-#        [{:one, [], Elixir}, {:two, [], Elixir}]}]}]}]}
-
-# %Elixirfmt.AstNode{children: [%Elixirfmt.AstNode{children: [], meta: [],
-#                                                  type: :Atom, value: :sum2},
-#                               %Elixirfmt.AstNode{children: [%Elixirfmt.AstNode{children: %Elixirfmt.AstFBody{args: [%Elixirfmt.AstNode{children: [],
-#                                                                                                                                        meta: [], type: :Atom, value: :one},
-#                                                                                                                     %Elixirfmt.AstNode{children: [], meta: [], type: :Atom, value: :two}],
-#                                                                                                              body: %Elixirfmt.AstNode{children: [%Elixirfmt.AstNode{children: [],
-#                                                                                                                                                                     meta: [], type: :Atom, value: :one},
-#                                                                                                                                                  %Elixirfmt.AstNode{children: [], meta: [], type: :Atom, value: :two}],
-#                                                                                                                                       meta: [context: Elixir, import: Kernel], type: :Operator, value: :+}},
-#                                                                                 meta: [], type: :FunctionBody, value: :->}], meta: [],
-#                               type: :AnonymousFunction, value: :fn}], meta: [], type: :Operator, value: :=}
