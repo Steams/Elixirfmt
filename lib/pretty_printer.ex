@@ -30,9 +30,9 @@ defmodule PrettierPrinter do
 
   def nill, do: :NIL
 
-  def %TEXT{text: x} <~> %TEXT{text: y} do
-    %TEXT{text: (x <> y)}
-  end
+  # def %TEXT{text: x} <~> %TEXT{text: y} do
+  #   %TEXT{text: (x <> y)}
+  # end
 
   def x <~> y do
     %CAT{left: x, right: y}
@@ -67,55 +67,45 @@ defmodule PrettierPrinter do
   defp layout(%Line{indent: i, doc: x}), do: "\n" <> String.duplicate(" ",i) <> layout(x)
   # def layout(%Line{indent: i, doc: x}), do: copy(i,">") <> layout(x)
 
-  defp best(w,k,x), do: be(w,k,[{0,x}])
+  def best(w,k,x), do: be(w,k,[{0,x}])
 
-  defp be(_,_,[]), do: :Nil
-
-  defp be(w,k,[{_,:NIL} | z]), do: be(w,k,z)
-
-  # defp be(w,k,[{i,%CAT{left: x, right: y}} | z]), do: be(w,k,([{i,x},{i,y}] ++ z))
-  defp be(w,k,[{i,%CAT{left: x, right: y}} | z]), do: be(w,k,[{i,x} | [{i,y} | z]])
-
-  # defp be(w,k,[{i,%NEST{indent: j, doc: x}} | z]), do: be(w,k,([{i+j,x}] ++ z))
-  defp be(w,k,[{i,%NEST{indent: j, doc: x}} | z]), do: be(w,k,([{i+j,x} | z]))
-
-  defp be(w,k,[{_,%TEXT{text: s}} | z]), do: %Text{text: s, doc: be(w,(k + (String.length s)),z)}
-
-  defp be(w,_,[{i,:LINE} | z]), do: %Line{indent: i, doc: be(w,i,z)}
-
-  # defp be(w,k,[{i,%UNION{left: x, right: y}} | z]), do: better(w,k,(be(w,k,([{i,x}] ++ z))),(be(w,k,([{i,y}] ++ z))))
-  # Maybe this is the bottle neck because unlike haskell, elixir evaluates both calles to be before calling better ?
-  # defp be(w,k,[{i,%UNION{left: x, right: y}} | z]), do: better(w,k,(be(w,k,([{i,x} | z]))),(be(w,k,([{i,y} | z]))))
-  defp be(w,k,[{i,%UNION{left: x, right: y}} | z]), do: better(w,k,(be(w,k,([{i,x} | z]))),fn -> (be(w,k,([{i,y} | z]))) end)
+  def be(w,k,[{_,%TEXT{text: s}} | z]), do: %Text{text: s, doc: be(w,(k + (String.length s)),z)}
+  def be(w,k,[{i,%CAT{left: x, right: y}} | z]), do: be(w,k,[{i,x} | [{i,y} | z]])
+  def be(w,k,[{i,%NEST{indent: j, doc: x}} | z]), do: be(w,k,([{i+j,x} | z]))
+  def be(w,k,[{i,%UNION{left: x, right: y}} | z]), do: better(w,k,(be(w,k,([{i,x} | z]))),fn -> (be(w,k,([{i,y} | z]))) end)
+  def be(w,k,[{_,:NIL} | z]), do: be(w,k,z)
+  def be(w,_,[{i,:LINE} | z]), do: %Line{indent: i, doc: be(w,i,z)}
+  def be(_,_,[]), do: :Nil
 
   # Changing better to accept a function as y so it doesnt evaluate unless it has to
-  defp better(w,k,x,y), do: if fits(w-k,x), do: x, else: y.()
+  def better(w,k,x,y), do: if fits(w-k,x), do: x, else: y.()
 
-  defp fits(_,:Nil), do: true
-  defp fits(w,%Text{text: s, doc: x}), do: fits((w - String.length s),x)
-  defp fits(w,%Line{indent: _,doc: _}), do: true
-  defp fits(w,_) when w < 0, do: false
+  def fits(w,_) when w < 0, do: false
+  def fits(w,%Text{text: s, doc: x}), do: fits((w - String.length s),x)
+  def fits(_,%Line{indent: _,doc: _}), do: true
+  def fits(_,:Nil), do: true
 
   def pretty(w,x) do
-    doc = best(w,0,x)
-    layout doc
+    best(w,0,x) |> layout
   end
 
   # Utils
 
-  def bracket(l,x,r), do: group(text(l) <~> nest(2,line() <~> x) <~> line() <~> text(r))
+  def cat_space(x,y), do: x <~> (text(" ") <~> y)
 
-  def cat_space(x,y), do: x <~> text(" ") <~> y
-  def cat_line(x,y), do: x <~> line() <~> y
-  def cat_best(x,y), do: x <~> (text(" ") <|> line()) <~> y
+  def cat_line(x,y), do: x <~> (line <~> y)
 
-  def folddoc(f,[]), do: nill()
-  def folddoc(f,[x]), do: x
+  def cat_best(x,y), do: x <~> ((text(" ") <|> line) <~> y)
+
+  def folddoc(_,[]), do: nill()
+  def folddoc(_,[x]), do: x
   def folddoc(f,[x | xs]), do: f.(x,folddoc(f,xs))
 
   def spread(xs), do: folddoc(&cat_space/2,xs)
   def stack(xs), do: folddoc(&cat_line/2,xs)
   def spread_or_stack(xs), do: folddoc(&cat_best/2,xs)
+
+  def bracket(l,x,r), do: group(text(l) <~> nest(2,line <~> x) <~> line <~> text(r))
 
 
   # -- Tree example
@@ -130,7 +120,7 @@ defmodule PrettierPrinter do
   def showBracket(ts), do: bracket("[",showTrees(ts),"]")
 
   def showTrees([t | []]), do: showTree t
-  def showTrees([t | ts]), do: showTree(t) <~> text(",") <~> line() <~> showTrees(ts)
+  def showTrees([t | ts]), do: showTree(t) <~> text(",") <~> line <~> showTrees(ts)
 
   def testtree(w,t), do: pretty(w,t)
 

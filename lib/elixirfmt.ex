@@ -68,18 +68,18 @@ defmodule Elixirfmt do
 
   # NOTE this is for block do funcs, need a different one for inline ones  ", do:"
   def buildFunctionDefinition({id,meta,[{name,funcmeta,args},[do: body]]}) do
-    IO.puts "= Building Function Definition ="
-    IO.puts "= Parsing Function Arguments ="
+    # IO.puts "= Building Function Definition ="
+    # IO.puts "= Parsing Function Arguments ="
     arguments = Enum.map(args, fn x -> parse_ast(x) end)
-    IO.puts "= Parsing Function Body ="
+    # IO.puts "= Parsing Function Body ="
     %FuncDef{name: to_string(name), args: arguments, body: parse_ast(body)}
   end
 
   def buildBinaryOp({name,meta,[left,right]}) do
-    IO.puts "= Building Binary Operator ="
-    IO.puts "= Parsing Left Argument ="
+    # IO.puts "= Building Binary Operator ="
+    # IO.puts "= Parsing Left Argument ="
     x = parse_ast(left)
-    IO.puts "= Parsing Right Argument ="
+    # IO.puts "= Parsing Right Argument ="
     y = parse_ast(right)
 
     %BinaryOp{name: name, left: x, right: y}
@@ -126,9 +126,9 @@ defmodule Elixirfmt do
   def parse_ast(ast) do
     {value,meta,children} = ast
     node_type = get_node_type(ast)
-    IO.inspect ast
-    IO.inspect node_type
-    IO.puts "_________________________________"
+    # IO.inspect ast
+    # IO.inspect node_type
+    # IO.puts "_________________________________"
 
     %AstNode{type: node_type, value: getNodeValue(ast,node_type)}
   end
@@ -139,10 +139,6 @@ defmodule Elixirfmt do
     spread_or_stack(arguments)
   end
 
-  def show_ast([]), do: nill()
-  def show_ast([head | []]), do: line() <~> show_ast(head)
-  def show_ast([head | tail]), do: line() <~> show_ast(head) <~> show_ast(tail)
-
   # Convert Typed Ast Structs to "Prettier Printer" DOC types
   def show_ast(ast) do
 
@@ -151,10 +147,8 @@ defmodule Elixirfmt do
     case value do
 
       %FuncDef{name: name, args: args, body: body} ->
-        head = text("def " <> name) <~> bracket("(",show_args(args),")") <~> text(" do")
-        # body = cat_best(show_ast(body),text"end")
+        head = text("def " <> name) <~> (bracket("(",show_args(args),")") <~> text(" do"))
         body = bracket("",show_ast(body),"end")
-        # head <~> line <~> body
         cat_best(head,body)
 
       %BinaryOp{name: op, left: x, right: y} ->
@@ -163,8 +157,8 @@ defmodule Elixirfmt do
         cat_best(left,right)
 
       %Block{children: xs} ->
-        kids = Enum.map(xs, fn(x) -> show_ast(x) end)
-        folddoc(&cat_line/2,kids)
+        kids = Enum.map(xs, fn(x) -> show_ast(x) <~> line end)
+        stack(kids)
 
       %Func{args: args, body: f} ->
         head = text("fn") <~> bracket("(",show_args(args),") ->")
@@ -197,10 +191,10 @@ defmodule Elixirfmt do
 
     parsed = parse_ast(ast)
     doc = show_ast(parsed)
-    IO.puts("______________AST____________")
-    IO.inspect parsed
-    IO.puts("______________DOC____________")
-    IO.inspect doc
+    # IO.puts("______________AST____________")
+    # IO.inspect parsed
+    # IO.puts("______________DOC____________")
+    # IO.inspect doc
     IO.puts("|" <> String.duplicate("-",w-2) <> "|")
     IO.puts(pretty(w,doc))
   end

@@ -1,0 +1,18 @@
+where x is -> TEXT "long snetence man" :<> ((TEXT " " :<|> LINE) :<> TEXT "even longer sentence man")
+
+pretty 7 x
+best 7 0 x
+be 7 0 [(0,x)] -> where x is a CAT
+be 7 0 [(0,left) | [{0,right} | z]]
+-> where z is []
+-> left is TEXT "long sentence man"
+-> right is CAT (text union line) TEXT "lon"...
+-> where the arr abouve us x2
+be 7 0 x2 -> where x2 is 0,left | 0,right | []
+%Text{text: s, doc: be(7,(0 + 17),z)} -> where z is 0,right
+be 7 17 x3 where x3 is a CAT of union and text
+be 7 17 [0,left | 0,right | []]
+be 7 17 union
+better(7,17,(be(7,17,[{0,x}]) or ...
+-> if fits(7-17,text " ")
+->-> fits(-10,x
