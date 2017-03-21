@@ -84,9 +84,12 @@ defmodule PrettierPrinter do
   defp be(w,_,[{i,:LINE} | z]), do: %Line{indent: i, doc: be(w,i,z)}
 
   # defp be(w,k,[{i,%UNION{left: x, right: y}} | z]), do: better(w,k,(be(w,k,([{i,x}] ++ z))),(be(w,k,([{i,y}] ++ z))))
-  defp be(w,k,[{i,%UNION{left: x, right: y}} | z]), do: better(w,k,(be(w,k,([{i,x} | z]))),(be(w,k,([{i,y} | z]))))
+  # Maybe this is the bottle neck because unlike haskell, elixir evaluates both calles to be before calling better ?
+  # defp be(w,k,[{i,%UNION{left: x, right: y}} | z]), do: better(w,k,(be(w,k,([{i,x} | z]))),(be(w,k,([{i,y} | z]))))
+  defp be(w,k,[{i,%UNION{left: x, right: y}} | z]), do: better(w,k,(be(w,k,([{i,x} | z]))),fn -> (be(w,k,([{i,y} | z]))) end)
 
-  defp better(w,k,x,y), do: if fits(w-k,x), do: x, else: y
+  # Changing better to accept a function as y so it doesnt evaluate unless it has to
+  defp better(w,k,x,y), do: if fits(w-k,x), do: x, else: y.()
 
   defp fits(_,:Nil), do: true
   defp fits(w,%Text{text: s, doc: x}), do: fits((w - String.length s),x)
