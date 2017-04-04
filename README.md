@@ -1,19 +1,60 @@
-# Elixirfmt
+# Elixirfmt (Work in progress)
 
-**TODO: Add description**
+Elixir Code formatter with automatic line wrapping based on Phillip Wadler's "A Prettier Printer"
 
-## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `elixirfmt` to your list of dependencies in `mix.exs`:
+##### Current working Example
 
-```elixir
-def deps do
-  [{:elixirfmt, "~> 0.1.0"}]
+```Elixir
+    max_width = 40
+
+    str = "def nested(one,two,three,four) do
+      sum4 = fn(x,y,z,a) -> x + y + z + a end
+
+      somethingElse = fn(name,surname) -> name ++ surname end
+      somethingElse = fn(name,surname) -> name ++ surname end
+    end"
+
+    ast = Code.string_to_quoted!(str)
+
+    parsed = parse_ast(ast)
+
+    doc = show_ast(parsed)
+
+    IO.puts("|" <> String.duplicate("-",w-2) <> "|")
+    IO.puts(pretty(max_width,doc))
+
+```
+
+Output with max line width 40
+
+```
+|--------------------------------------|
+def nested( one, two, three, four, ) do 
+  sum4 = fn( x, y, z, a, ) -> 
+    x + y + z + a
+  end
+  
+  somethingElse = fn(
+    name, surname,
+  ) ->  name ++ surname end
+  
+  somethingElse = fn(
+    name, surname,
+  ) ->  name ++ surname end
+  
 end
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/elixirfmt](https://hexdocs.pm/elixirfmt).
-
+with Max line width 80 
+```
+|------------------------------------------------------------------------------|
+def nested( one, two, three, four, ) do 
+  sum4 = fn( x, y, z, a, ) ->  x + y + z + a end
+  
+  somethingElse = fn( name, surname, ) ->  name ++ surname end
+  
+  somethingElse = fn( name, surname, ) ->  name ++ surname end
+  
+end
+```

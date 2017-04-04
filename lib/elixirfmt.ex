@@ -173,7 +173,6 @@ defmodule Elixirfmt do
   end
 
   # TODO Handle anonymous function calls with dot in parser/printer
-
   def test(w) do
 
     # str = "sum5 = fn(one,two,three,four,five) -> one + two + three + four + five end"
