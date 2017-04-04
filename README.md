@@ -1,6 +1,6 @@
 # Elixirfmt (Work in progress)
 
-Elixir Code formatter with automatic line wrapping based on Phillip Wadler's "A Prettier Printer"
+Elixir Code formatter with automatic line wrapping based on [Phillip Wadler's "A Prettier Printer"](http://homepages.inf.ed.ac.uk/wadler/papers/prettier/prettier.pdf)
 
 
 ##### Current working Example
